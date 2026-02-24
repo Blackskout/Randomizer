@@ -8,6 +8,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import kotlinx.coroutines.flow.MutableStateFlow
 import ru.hopes.randomizer.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
@@ -18,44 +19,23 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(binding.root)
-        setWindowInsetsListener()
 
+        setWindowInsetsListener()
+        createAlertDialog()
+
+    }
+
+    private fun setWindowInsetsListener() {
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+    }
+
+
+    private fun createAlertDialog() {
         with(binding) {
-            addButton.setOnClickListener {
-                AlertDialog.Builder(this@MainActivity)
-                    .setMessage("Показал писюн?")
-                    .setCancelable(false)
-                    .setNegativeButton(
-                        "Хуесос!",
-                        DialogInterface.OnClickListener { _, n ->
-                            Toast.makeText(
-                                this@MainActivity,
-                                "Хуесос $n",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    )
-                    .set
-                    .setNeutralButton(
-                        "не молодец!",
-                        DialogInterface.OnClickListener { _, n ->
-                            Toast.makeText(
-                                this@MainActivity,
-                                "не молодец! $n",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    )
-                    .setPositiveButton(
-                        "Молодец!",
-                        DialogInterface.OnClickListener { _, n ->
-                            Toast.makeText(
-                                this@MainActivity,
-                                "Молодец $n",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }).create().show()
-            }
 
             spinButton.setOnClickListener {
                 spinButton.isEnabled = false
@@ -65,17 +45,85 @@ class MainActivity : AppCompatActivity() {
                 }
                 winnerTextView.cleanWithAnimation()
             }
-            wheelView.setOptions(listOf("Artur", "Sergey", "Arshak", "Dima", "Yuri"))
-        }
+            wheelView.setOptions(mutableListOf("Artur", "Sergey", "Arshak", "Dima", "Yuri"))
 
-    }
+            addButton.setOnClickListener {
 
+                val dialogState: MutableStateFlow<Boolean> = MutableStateFlow(true)
+                val options = wheelView.options
+                val checkedItems = BooleanArray(options.size)
 
-    private fun setWindowInsetsListener() {
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
+                if (dialogState.value) {
+
+                    AlertDialog.Builder(this@MainActivity)
+                        .setCancelable(false)
+                        .setTitle("Что будем делать?")
+                        .setNegativeButton(
+                            "Удалить",
+                            DialogInterface.OnClickListener { _, n ->
+                                AlertDialog.Builder(this@MainActivity)
+                                    .setCancelable(false)
+                                    .setTitle("Кого будем удалять?")
+                                    .setMultiChoiceItems(
+                                        options.toTypedArray(), checkedItems,
+                                        DialogInterface.OnMultiChoiceClickListener { _, which, isChecked ->
+                                            checkedItems[which] = isChecked
+                                        })
+                                    .setPositiveButton("Удалить") { dialog, _ ->
+                                        val toRemove = mutableListOf<String>()
+                                        checkedItems.forEachIndexed { index, isChecked ->
+                                            if (isChecked) {
+                                                toRemove.add(options[index])
+                                            }
+                                        }
+
+                                        if (toRemove.isNotEmpty()) {
+                                            wheelView.removeOptions(toRemove)
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                "Удалено: ${toRemove.size}",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                    .setNegativeButton("Отмена", null)
+                                    .show()
+                            }
+                        )
+                        .setNeutralButton(
+                            "Отмена",
+                            null
+                        )
+                        .setPositiveButton(
+                            "Добавить",
+                            DialogInterface.OnClickListener { _, n ->
+                                AlertDialog.Builder(this@MainActivity)
+                                    .setCancelable(false)
+                                    .setTitle("Кого будем добавлять?")
+
+                                    .setPositiveButton("Удалить") { dialog, _ ->
+                                        val toRemove = mutableListOf<String>()
+                                        checkedItems.forEachIndexed { index, isChecked ->
+                                            if (isChecked) {
+                                                toRemove.add(options[index])
+                                            }
+                                        }
+
+                                        if (toRemove.isNotEmpty()) {
+                                            wheelView.removeOptions(toRemove)
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                "Удалено: ${toRemove.size}",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                    .setNegativeButton("Отмена", null)
+                                    .show()
+                            }
+                        )
+                }
+            }
         }
     }
 }

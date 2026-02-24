@@ -45,7 +45,10 @@ class WheelView @JvmOverloads constructor(
             }
         }
 
-    private var options: List<String> = ArrayList()
+    private var _options: MutableList<String> = mutableListOf()
+    val options: List<String>
+        get() = _options
+
 
     private var defaultColors: IntArray = intArrayOf(
         "#FF4136".toColorInt(),  // Red
@@ -77,8 +80,13 @@ class WheelView @JvmOverloads constructor(
     private var colorPalette: ColorPalette = Default
 
 
-    fun setOptions(options: List<String>) {
-        this.options = options
+    fun setOptions(options: MutableList<String>) {
+        this._options = options
+        invalidate()
+    }
+
+    fun removeOptions(optionsToRemove: List<String>) {
+        _options.removeAll(optionsToRemove)
         invalidate()
     }
 
@@ -90,7 +98,7 @@ class WheelView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        if (options.isEmpty()) return
+        if (_options.isEmpty()) return
 
         val centerX = width / 2f
         val centerY = height / 2f
@@ -100,9 +108,9 @@ class WheelView @JvmOverloads constructor(
 
         canvas.withRotation(rotation, centerX, centerY) {
             var startAngle = 0f
-            val sweepAngle = RADIUS_ROUNDED_FULL_F / options.size
+            val sweepAngle = RADIUS_ROUNDED_FULL_F / _options.size
 
-            for (i in options.indices) {
+            for (i in _options.indices) {
                 val colorIndex =
                     i % (if (colorPalette === Pastel) pastelColors.size else defaultColors.size)
                 val color =
@@ -119,7 +127,7 @@ class WheelView @JvmOverloads constructor(
 
                 drawTextRadially(
                     this,
-                    options[i],
+                    _options[i],
                     centerX,
                     centerY,
                     radius,
@@ -239,7 +247,7 @@ class WheelView @JvmOverloads constructor(
         }
 
         // Apply more aggressive scaling factor based on the number of options
-        val scaleFactor = max(0.5f, 1f - (options.size / 70f)) // Adjust this formula as needed
+        val scaleFactor = max(0.5f, 1f - (_options.size / 70f)) // Adjust this formula as needed
         return optimalSize * scaleFactor
     }
 
@@ -257,8 +265,8 @@ class WheelView @JvmOverloads constructor(
     fun getSelectedOption(): String {
         val normalizedRotation =
             (RADIUS_ROUNDED_FULL - (rotation % RADIUS_ROUNDED_FULL)) % RADIUS_ROUNDED_FULL
-        val index = (normalizedRotation / (RADIUS_ROUNDED_FULL_F / options.size)).toInt()
-        return options[index]
+        val index = (normalizedRotation / (RADIUS_ROUNDED_FULL_F / _options.size)).toInt()
+        return _options[index]
     }
 
     companion object {
