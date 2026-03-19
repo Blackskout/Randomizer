@@ -17,21 +17,26 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <Button
+    <ImageButton
         android:id="@+id/spinButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="36dp"
-        android:text="Крутануть"
+        android:background="#3A3939"
+        android:contentDescription="spin"
+        android:src="@drawable/spinner_rotate_forward_svgrepo_com"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <Button
+    <ImageButton
         android:id="@+id/addButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:contentDescription="set names"
         android:text="Добавить"
+        android:src="@drawable/pen_square_svgrepo_com__3_"
+        android:background="#3A3939"
         app:layout_constraintBottom_toBottomOf="@+id/spinButton"
         app:layout_constraintStart_toEndOf="@+id/spinButton"
         app:layout_constraintEnd_toEndOf="parent"

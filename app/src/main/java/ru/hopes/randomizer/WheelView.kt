@@ -10,6 +10,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import androidx.core.animation.doOnEnd
 import androidx.core.graphics.toColorInt
@@ -67,6 +68,8 @@ class WheelView @JvmOverloads constructor(
         "#BAE1FF".toColorInt(),  // Pastel Blue
         "#E6BAFF".toColorInt() // Pastel Purple
     )
+
+    private val strokeWidth: Float = DEFAULT_STROKE_WIDTH
 
     private var isSpinning: Boolean = false
 
@@ -180,7 +183,7 @@ class WheelView @JvmOverloads constructor(
 
         paint.setColor(Color.BLACK)
         paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 2f
+        paint.strokeWidth = strokeWidth
         canvas.drawPath(indicatorPath, paint)
     }
 
@@ -261,6 +264,11 @@ class WheelView @JvmOverloads constructor(
         this.rotation = rotation
         invalidate()
     }
+// 560
+// 6 items
+// 160 угол на который повернулся
+// 1 item = 60
+// 160 / 60 = 2 - индекс победителя
 
     fun getSelectedOption(): String {
         val normalizedRotation =
@@ -278,10 +286,7 @@ class WheelView @JvmOverloads constructor(
 
         private const val DEFAULT_DURATION = 5_000L
 
-//        private const val DEFAULT_MIN_SPIN = 720
-//        private const val DEFAULT_MAX_SPIN = 1080 + DEFAULT_MIN_SPIN
-//
-//        private const val DEFAULT_DURATION = 5_000L
+        private val DEFAULT_STROKE_WIDTH = 1f.toDp()
 
     }
 }
