@@ -82,6 +82,10 @@ class WheelView @JvmOverloads constructor(
     private var rotation = 0f
     private var colorPalette: ColorPalette = Default
 
+    // Переменные для режима подкрутки
+    private var weights: Map<String, Float> = emptyMap()
+    private var riggedWinner: String? = null
+    private var isRiggedMode: Boolean = false
 
     fun setOptions(options: MutableList<String>) {
         this._options = options
@@ -97,6 +101,58 @@ class WheelView @JvmOverloads constructor(
         this.colorPalette = palette
         invalidate()
     }
+
+    // Методы API для режима подкрутки
+
+    /**
+     * Устанавливает веса (вероятности) для элементов колеса.
+     * Элементы с большим весом имеют更高的 шанс выпадения.
+     *
+     * @param weights Мапа весов, где ключ — имя элемента, значение — его вес (> 0)
+     */
+    fun setWeights(weights: Map<String, Float>) {
+        this.weights = weights
+    }
+
+    /**
+     * Устанавливает жёстко заданного победителя.
+     * Если установлено, этот элемент будет выпадать всегда (при включённом riggedMode).
+     *
+     * @param winner Имя победителя или null для отмены
+     */
+    fun setRiggedWinner(winner: String?) {
+        this.riggedWinner = winner
+    }
+
+    /**
+     * Включает или выключает режим подкрутки.
+     *
+     * @param enabled true для включения режима подкрутки
+     */
+    fun setRiggedMode(enabled: Boolean) {
+        this.isRiggedMode = enabled
+    }
+
+    /**
+     * Проверяет, включён ли режим подкрутки.
+     *
+     * @return true если режим подкрутки активен
+     */
+    fun isRiggedModeEnabled(): Boolean = isRiggedMode
+
+    /**
+     * Получает текущие веса элементов.
+     *
+     * @return Мапа весов или пустая мапа, если веса не установлены
+     */
+    fun getWeights(): Map<String, Float> = weights
+
+    /**
+     * Получает текущего жёстко заданного победителя.
+     *
+     * @return Имя победителя или null, если не установлено
+     */
+    fun getRiggedWinner(): String? = riggedWinner
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -150,8 +206,13 @@ class WheelView @JvmOverloads constructor(
     fun spinWheel(resultListener: (String) -> Unit) {
         if (isSpinning) return
 
-        val random = Random(System.currentTimeMillis())
-        val targetRotation = rotation + random.nextInt(maxSpin - minSpin) + minSpin
+        val targetRotation = if (isRiggedMode) {
+            calculateRiggedRotation()
+        } else {
+            val random = Random(System.currentTimeMillis())
+            rotation + random.nextInt(maxSpin - minSpin) + minSpin
+        }
+
         val animator = ValueAnimator.ofFloat(rotation, targetRotation).apply {
             setDuration(this@WheelView.duration)
             interpolator = TimeInterpolator { input -> // интерполятор - Динамика прокрутки
@@ -166,6 +227,75 @@ class WheelView @JvmOverloads constructor(
 
         animator.start()
         isSpinning = true
+    }
+
+    /**
+     * Вычисляет целевой угол поворота для режима подкрутки.
+     * Приоритет: 1) жёстко заданный победитель, 2) веса элементов, 3) случайный выбор
+     */
+    private fun calculateRiggedRotation(): Float {
+        val winner = when {
+            // Приоритет 1: жёстко заданный победитель
+            riggedWinner != null && riggedWinner in _options -> riggedWinner!!
+            // Приоритет 2: выбор на основе весов
+            weights.isNotEmpty() -> selectWeightedWinner()
+            // Приоритет 3: случайный выбор из доступных
+            else -> _options.random()
+        }
+
+        return calculateRotationForWinner(winner)
+    }
+
+    /**
+     * Выбирает победителя на основе весов (вероятностей).
+     */
+    private fun selectWeightedWinner(): String {
+        val weightedOptions = _options.filter { it in weights && weights[it]!! > 0f }
+
+        // Если нет валидных весов, выбираем случайно
+        if (weightedOptions.isEmpty()) return _options.random()
+
+        val totalWeight = weightedOptions.map { weights[it]!! }.reduce { acc, f -> acc + f }
+        if (totalWeight <= 0f) return _options.random()
+
+        val random = Random(System.currentTimeMillis()).nextFloat() * totalWeight
+        var currentWeight = 0f
+
+        for (option in weightedOptions) {
+            currentWeight += weights[option]!!
+            if (random <= currentWeight) return option
+        }
+
+        return weightedOptions.last()
+    }
+
+    /**
+     * Вычисляет угол поворота, чтобы нужный элемент оказался под индикатором.
+     */
+    private fun calculateRotationForWinner(winner: String): Float {
+        val winnerIndex = _options.indexOf(winner)
+        if (winnerIndex == -1) {
+            // Если победитель не найден, выбираем случайный угол
+            val random = Random(System.currentTimeMillis())
+            return rotation + random.nextInt(maxSpin - minSpin) + minSpin
+        }
+
+        val segmentAngle = RADIUS_ROUNDED_FULL_F / _options.size
+        // Индикатор находится справа (0 градусов), нужно повернуть колесо так,
+        // чтобы сегмент победителя оказался под индикатором
+        val targetSegmentAngle = winnerIndex * segmentAngle + segmentAngle / 2
+        
+        // Добавляем случайное смещение внутри сегмента для реалистичности
+        val randomOffset = (Random(System.currentTimeMillis()).nextFloat() - 0.5f) * segmentAngle * 0.8f
+        
+        // Целевой угол с учётом минимального количества оборотов
+        val baseRotation = rotation + minSpin
+        val normalizedCurrentRotation = baseRotation % RADIUS_ROUNDED_FULL_F
+        
+        // Вычисляем необходимый поворот
+        val rotationToWinner = (RADIUS_ROUNDED_FULL_F - targetSegmentAngle + randomOffset - normalizedCurrentRotation + RADIUS_ROUNDED_FULL_F) % RADIUS_ROUNDED_FULL_F
+        
+        return baseRotation + rotationToWinner
     }
 
     private fun drawIndicator(canvas: Canvas, centerX: Float, centerY: Float, radius: Float) {

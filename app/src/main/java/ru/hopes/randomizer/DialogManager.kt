@@ -142,6 +142,127 @@ class DialogManager(private val context: Context) {
     }
 
     /**
+     * Отображает диалог настройки режима подкрутки (rigged mode).
+     * Позволяет включить/выключить режим, выбрать жёсткого победителя или настроить веса.
+     *
+     * @param options Список элементов колеса.
+     * @param currentWeights Текущие веса элементов (может быть пустой мапой).
+     * @param currentRiggedWinner Текущий жёстко заданный победитель (или null).
+     * @param isRiggedModeEnabled Флаг включения режима подкрутки.
+     * @param onSave Callback для сохранения настроек.
+     */
+    fun showRiggedModeDialog(
+        options: List<String>,
+        currentWeights: Map<String, Float>,
+        currentRiggedWinner: String?,
+        isRiggedModeEnabled: Boolean,
+        onSave: (weights: Map<String, Float>?, riggedWinner: String?, enabled: Boolean) -> Unit
+    ) {
+        val view = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 32)
+        }
+
+        // Переключатель режима подкрутки
+        val riggedModeSwitch = android.widget.Switch(context).apply {
+            text = "Режим подкрутки"
+            isChecked = isRiggedModeEnabled
+            setPadding(0, 0, 0, 32)
+        }
+        view.addView(riggedModeSwitch)
+
+        // Выпадающий список для выбора победителя
+        val winnerSpinner = android.widget.Spinner(context).apply {
+            visibility = if (isRiggedModeEnabled) android.view.View.VISIBLE else android.view.View.GONE
+        }
+        val spinnerAdapter = android.widget.ArrayAdapter(
+            context,
+            android.R.layout.simple_spinner_dropdown_item,
+            listOf("Нет (только веса)") + options
+        )
+        winnerSpinner.adapter = spinnerAdapter
+        winnerSpinner.setSelection(if (currentRiggedWinner == null) 0 else options.indexOf(currentRiggedWinner) + 1)
+        view.addView(winnerSpinner)
+
+        // Текст-подсказка
+        val hintTextView = android.widget.TextView(context).apply {
+            text = "Нажмите на элемент для настройки веса"
+            setPadding(0, 16, 0, 16)
+            textSize = 12f
+        }
+        view.addView(hintTextView)
+
+        // Список элементов с весами
+        val weightsLayout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+        }
+
+        val weightEditTexts = mutableMapOf<String, android.widget.EditText>()
+
+        options.forEach { option ->
+            val weightLayout = android.widget.LinearLayout(context).apply {
+                orientation = android.widget.LinearLayout.HORIZONTAL
+                setPadding(0, 8, 0, 8)
+            }
+
+            val textView = android.widget.TextView(context).apply {
+                text = option
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    0,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                    1f
+                )
+            }
+
+            val editText = android.widget.EditText(context).apply {
+                hint = "Вес"
+                inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+                setText(if (currentWeights.containsKey(option)) currentWeights[option].toString() else "1")
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    200,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            weightLayout.addView(textView)
+            weightLayout.addView(editText)
+            weightsLayout.addView(weightLayout)
+
+            weightEditTexts[option] = editText
+        }
+
+        view.addView(weightsLayout)
+
+        // Диалог
+        AlertDialog.Builder(context)
+            .setCancelable(false)
+            .setTitle("Настройка подкрутки")
+            .setView(view)
+            .setPositiveButton("Сохранить") { dialog, _ ->
+                val weights = if (weightEditTexts.values.any { it.text.toString().isNotEmpty() }) {
+                    weightEditTexts.mapValues { it.value.text.toString().toFloatOrNull() ?: 1f }
+                } else {
+                    emptyMap()
+                }
+
+                val riggedWinner = when {
+                    !riggedModeSwitch.isChecked -> null
+                    winnerSpinner.selectedItemPosition == 0 -> null
+                    else -> options[winnerSpinner.selectedItemPosition - 1]
+                }
+
+                onSave(weights, riggedWinner, riggedModeSwitch.isChecked)
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+
+        // Обработчик переключателя
+        riggedModeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            winnerSpinner.visibility = if (isChecked) android.view.View.VISIBLE else android.view.View.GONE
+        }
+    }
+
+    /**
      * Фабричный метод для создания экземпляра [DialogManager].
      *
      * @param activity Активность, которая будет использоваться как контекст.

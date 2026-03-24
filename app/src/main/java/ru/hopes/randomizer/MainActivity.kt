@@ -1,6 +1,11 @@
 package ru.hopes.randomizer
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -12,6 +17,12 @@ class MainActivity : AppCompatActivity() {
 
     private val binding by lazy { ActivityMainBinding.inflate(layoutInflater) }
     private lateinit var dialogManager: DialogManager
+    private lateinit var vibrator: Vibrator
+    private val handler = Handler(Looper.getMainLooper())
+    private var longPressRunnable: Runnable? = null
+
+    // Длительность долгого тапа для активации скрытого меню (в миллисекундах)
+    private val longPressDuration = 2000L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,9 +30,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         dialogManager = DialogManager.create(this)
+        vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
 
         setWindowInsetsListener()
         setupClickListeners()
+        setupLongClickListener()
     }
 
     private fun setWindowInsetsListener() {
@@ -61,6 +74,50 @@ class MainActivity : AppCompatActivity() {
                     onRemove = { showRemoveDialog(options) }
                 )
             }
+        }
+    }
+
+    @Suppress("ClickableViewAccessibility")
+    private fun setupLongClickListener() {
+        longPressRunnable = Runnable {
+            vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+            showRiggedDialog()
+        }
+
+        binding.wheelView.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    handler.postDelayed(longPressRunnable!!, longPressDuration)
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    handler.removeCallbacks(longPressRunnable!!)
+                    false
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun showRiggedDialog() {
+        val wheelView = binding.wheelView
+        dialogManager.showRiggedModeDialog(
+            options = wheelView.options,
+            currentWeights = wheelView.getWeights(),
+            currentRiggedWinner = wheelView.getRiggedWinner(),
+            isRiggedModeEnabled = wheelView.isRiggedModeEnabled()
+        ) { weights, riggedWinner, enabled ->
+            wheelView.setWeights(weights ?: emptyMap())
+            wheelView.setRiggedWinner(riggedWinner)
+            wheelView.setRiggedMode(enabled)
+
+            val statusText = when {
+                !enabled -> "Режим подкрутки выключен"
+                riggedWinner != null -> "Подкрутка: победитель — $riggedWinner"
+                weights?.isNotEmpty() == true -> "Подкрутка: режим весов активен"
+                else -> "Режим подкрутки включён"
+            }
+            Toast.makeText(this, statusText, Toast.LENGTH_SHORT).show()
         }
     }
 
