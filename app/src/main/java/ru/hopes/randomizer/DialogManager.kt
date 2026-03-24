@@ -1,6 +1,8 @@
 package ru.hopes.randomizer
 
 import android.content.Context
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -27,11 +29,6 @@ class DialogManager(private val context: Context) {
         onAdd: () -> Unit,
         onRemove: () -> Unit
     ) {
-        if (options.isEmpty()) {
-            Toast.makeText(context, "Список пуст", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         AlertDialog.Builder(context)
             .setCancelable(false)
             .setTitle("Что будем делать?")
@@ -101,6 +98,47 @@ class DialogManager(private val context: Context) {
             }
             .setNegativeButton("Отмена", null)
             .show()
+    }
+
+    /**
+     * Отображает диалог ввода нового элемента для добавления.
+     *
+     * @param existingOptions Список существующих опций для проверки дубликатов.
+     * @param onConfirm Callback, вызываемый при подтверждении добавления.
+     *                  Передаёт новый элемент в качестве параметра.
+     */
+    fun showAddDialogWithInput(
+        existingOptions: List<String>,
+        onConfirm: (String) -> Unit
+    ) {
+        val editText = EditText(context).apply {
+            hint = context.getString(ru.hopes.randomizer.R.string.enter_element_name)
+            setPadding(48, 32, 48, 32)
+        }
+
+        val dialog = AlertDialog.Builder(context)
+            .setCancelable(false)
+            .setTitle(ru.hopes.randomizer.R.string.add_element)
+            .setView(editText)
+            .setPositiveButton(ru.hopes.randomizer.R.string.add) { _, _ ->
+                val newElement = editText.text.toString().trim()
+                if (newElement.isNotEmpty()) {
+                    onConfirm(newElement)
+                } else {
+                    Toast.makeText(context, "Введите имя элемента", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(ru.hopes.randomizer.R.string.cancel, null)
+            .create()
+
+        dialog.show()
+        editText.requestFocus()
+
+        // Показываем клавиатуру после отображения диалога
+        editText.postDelayed({
+            val inputMethodManager = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            inputMethodManager.showSoftInput(editText, 0)
+        }, 100)
     }
 
     /**

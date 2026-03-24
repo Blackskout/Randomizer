@@ -37,12 +37,20 @@ class MainActivity : AppCompatActivity() {
             wheelView.setOptions(mutableListOf("Artur", "Sergey", "Arshak", "Dima", "Yuri"))
 
             spinButton.setOnClickListener {
+                if (wheelView.options.isEmpty()) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Добавьте сначала хотя бы один элемент",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
                 spinButton.isEnabled = false
                 wheelView.spinWheel { winner ->
                     winnerTextView.setupWinnerWithAnimation(winner)
                     spinButton.isEnabled = true
                 }
                 winnerTextView.cleanWithAnimation()
+                    }
             }
 
             addButton.setOnClickListener {
@@ -57,14 +65,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAddDialog(options: List<String>) {
-        dialogManager.showAddDialog(options) { selectedOption ->
+        dialogManager.showAddDialogWithInput(options) { newElement ->
             val currentOptions = binding.wheelView.options.toMutableList()
-            if (!currentOptions.contains(selectedOption)) {
-                currentOptions.add(selectedOption)
+            if (!currentOptions.contains(newElement)) {
+                currentOptions.add(newElement)
                 binding.wheelView.setOptions(currentOptions)
-                Toast.makeText(this, "Добавлено: $selectedOption", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Уже существует", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.already_exists, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -72,7 +79,6 @@ class MainActivity : AppCompatActivity() {
     private fun showRemoveDialog(options: List<String>) {
         dialogManager.showRemoveDialog(options) { toRemove ->
             binding.wheelView.removeOptions(toRemove)
-            Toast.makeText(this, "Удалено: ${toRemove.size}", Toast.LENGTH_SHORT).show()
         }
     }
 }
